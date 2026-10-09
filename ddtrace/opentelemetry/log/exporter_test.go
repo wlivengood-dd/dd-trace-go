@@ -34,6 +34,25 @@ func TestNewOTLPExporterProtocol(t *testing.T) {
 	}
 }
 
+func TestSanitizeOTLPEndpoint(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		raw       string
+		isGeneric bool
+		expected  string
+	}{
+		{name: "generic no path", raw: "http://collector:4318", isGeneric: true, expected: "http://collector:4318/v1/logs"},
+		{name: "generic trailing slash", raw: "http://collector:4318/", isGeneric: true, expected: "http://collector:4318/v1/logs"},
+		{name: "generic custom path", raw: "http://collector:4318/otlp", isGeneric: true, expected: "http://collector:4318/otlp/v1/logs"},
+		{name: "signal-specific path", raw: "http://collector:4318/custom/", expected: "http://collector:4318/custom/"},
+		{name: "invalid", raw: "http://[::1", expected: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, sanitizeOTLPEndpoint(tc.raw, tc.isGeneric))
+		})
+	}
+}
+
 func TestResolveOTLPEndpointHTTP(t *testing.T) {
 	t.Run("defaults to localhost:4318", func(t *testing.T) {
 		endpoint, path, insecure := resolveOTLPEndpointHTTP()

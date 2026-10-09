@@ -203,6 +203,8 @@ type Config struct {
 	otlpLogsEndpoint string
 	otlpLogsHeaders  map[string]string
 	otlpLogsTimeout  time.Duration
+	// Retain the source so HTTP export only appends /v1/logs to generic endpoints.
+	otlpLogsEndpointIsGeneric bool
 	// traceProtocol is the Datadog trace protocol version the user requested
 	// (TraceProtocolV04 or TraceProtocolV1). This is independent of whether the
 	// trace-agent actually supports it — see RequestedTraceProtocol's doc.
@@ -474,7 +476,9 @@ func loadConfig() *Config {
 	cfg.otlpTraceURL = resolveOTLPTraceURL(otlpTracesEndpoint, cfg.otlpEndpoint)
 	cfg.otlpTraceURLDerivedFromAgent = (otlpTracesEndpoint == "" || cfg.otlpTraceURL != otlpTracesEndpoint) &&
 		(otlpGenericEndpoint == "" || cfg.otlpEndpoint != otlpGenericEndpoint)
-	cfg.otlpLogsEndpoint = p.GetString("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", otlpGenericEndpoint)
+	otlpLogsEndpoint, otlpLogsEndpointOrigin := p.GetStringWithOrigin("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", otlpGenericEndpoint)
+	cfg.otlpLogsEndpoint = otlpLogsEndpoint
+	cfg.otlpLogsEndpointIsGeneric = otlpLogsEndpointOrigin == OriginDefault
 	otlpGenericHeaders := decodeOTLPHeaders(p.GetMap("OTEL_EXPORTER_OTLP_HEADERS", nil, internal.OtelTagsDelimeter))
 	cfg.otlpTraceHeaders = buildOTLPTraceHeaders(mergeOTLPHeaders(
 		otlpGenericHeaders,
@@ -1714,6 +1718,14 @@ func (c *Config) OTLPLogsEndpoint() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.otlpLogsEndpoint
+}
+
+// OTLPLogsEndpointIsGeneric reports whether HTTP export must append /v1/logs.
+// The source must be retained even when both endpoint settings have the same URL.
+func (c *Config) OTLPLogsEndpointIsGeneric() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.otlpLogsEndpointIsGeneric
 }
 
 // OTLPLogsHeaders returns a copy of the resolved OTLP logs headers.
