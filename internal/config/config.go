@@ -198,6 +198,8 @@ type Config struct {
 	blrpScheduleDelay      time.Duration
 	blrpExportTimeout      time.Duration
 	blrpMaxExportBatchSize int
+	// OTLP logs exporter settings (OTEL_EXPORTER_OTLP_LOGS_*, falling back to OTEL_EXPORTER_OTLP_*)
+	otlpLogsProtocol string
 	// traceProtocol is the Datadog trace protocol version the user requested
 	// (TraceProtocolV04 or TraceProtocolV1). This is independent of whether the
 	// trace-agent actually supports it — see RequestedTraceProtocol's doc.
@@ -505,7 +507,12 @@ func loadConfig() *Config {
 	// the generic value never reaches the exporter when it is set; warn about
 	// it only when it is the effective protocol.
 	warnGeneric := warnOTLPProtocol && !p.IsSet("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL")
-	otlpProtocolFallback := p.GetString("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
+	otlpProtocolFallback, otlpProtocolOrigin := p.GetStringWithOrigin("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
+	otlpLogsProtocolFallback := defaultOTLPLogsProtocol
+	if otlpProtocolOrigin != telemetry.OriginDefault {
+		otlpLogsProtocolFallback = otlpProtocolFallback
+	}
+	cfg.otlpLogsProtocol = strings.ToLower(strings.TrimSpace(p.GetString("OTEL_EXPORTER_OTLP_LOGS_PROTOCOL", otlpLogsProtocolFallback)))
 	if !validateOTLPProtocol(otlpProtocolFallback, "OTEL_EXPORTER_OTLP_PROTOCOL", warnGeneric) {
 		otlpProtocolFallback = "http/protobuf"
 	}
@@ -1677,6 +1684,14 @@ func (c *Config) BLRPMaxExportBatchSize() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.blrpMaxExportBatchSize
+}
+
+// OTLPLogsProtocol returns the lowercased OTLP logs protocol. The value is not
+// validated; it defaults to "http/json".
+func (c *Config) OTLPLogsProtocol() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.otlpLogsProtocol
 }
 
 func (c *Config) OTelSemanticsEnabled() bool {
