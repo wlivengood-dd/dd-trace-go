@@ -132,7 +132,14 @@ func (p *Provider) GetInt(key string, def int) int {
 }
 
 func (p *Provider) GetInt64(key string, def int64) int64 {
-	return get(p, key, def, func(v string) (int64, bool) {
+	v, _ := p.GetInt64WithOrigin(key, def)
+	return v
+}
+
+// GetInt64WithOrigin is like GetInt64 but also returns the origin of the winning
+// configuration source.
+func (p *Provider) GetInt64WithOrigin(key string, def int64) (int64, telemetry.Origin) {
+	return getWithOrigin(p, key, def, func(v string) (int64, bool) {
 		intVal, err := strconv.ParseInt(v, 10, 64)
 		return intVal, err == nil
 	})

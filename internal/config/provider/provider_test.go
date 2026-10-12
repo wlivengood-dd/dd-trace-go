@@ -561,3 +561,23 @@ func TestGetInt64(t *testing.T) {
 		})
 	}
 }
+
+func TestGetInt64WithOrigin(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		value          string
+		expected       int64
+		expectedOrigin telemetry.Origin
+	}{
+		{name: "unset", value: "", expected: 30000, expectedOrigin: telemetry.OriginDefault},
+		{name: "invalid", value: "invalid", expected: 30000, expectedOrigin: telemetry.OriginDefault},
+		{name: "set", value: "5000", expected: 5000, expectedOrigin: telemetry.OriginEnvVar},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := newTestProvider(newTestConfigSource(map[string]string{"OTEL_BLRP_SCHEDULE_DELAY": tc.value}, telemetry.OriginEnvVar))
+			v, origin := p.GetInt64WithOrigin("OTEL_BLRP_SCHEDULE_DELAY", 30000)
+			assert.Equal(t, tc.expected, v)
+			assert.Equal(t, tc.expectedOrigin, origin)
+		})
+	}
+}
