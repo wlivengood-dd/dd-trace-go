@@ -506,6 +506,23 @@ func decodeOTLPHeaders(headers map[string]string) map[string]string {
 	return headers
 }
 
+// parseOTLPLogsHeaders parses comma-separated key=value pairs. Unlike GetMap, it
+// never splits on spaces. Values are percent-decoded; entries without '=', with
+// an empty key, or with an invalid escape are dropped.
+func parseOTLPLogsHeaders(str string) map[string]string {
+	headers := make(map[string]string)
+	for entry := range strings.SplitSeq(str, ",") {
+		key, val, ok := strings.Cut(entry, "=")
+		key = strings.TrimSpace(key)
+		val, err := url.PathUnescape(strings.TrimSpace(val))
+		if !ok || key == "" || err != nil {
+			continue
+		}
+		headers[key] = val
+	}
+	return headers
+}
+
 // mergeOTLPHeaders merges generic and signal-specific OTLP headers (traces, metrics); signal headers take precedence.
 func mergeOTLPHeaders(genericHeaders, signalHeaders map[string]string) map[string]string {
 	if len(genericHeaders) == 0 && len(signalHeaders) == 0 {

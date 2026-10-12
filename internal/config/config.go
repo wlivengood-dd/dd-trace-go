@@ -201,6 +201,7 @@ type Config struct {
 	// OTLP logs exporter settings (OTEL_EXPORTER_OTLP_LOGS_*, falling back to OTEL_EXPORTER_OTLP_*)
 	otlpLogsProtocol string
 	otlpLogsEndpoint string
+	otlpLogsHeaders  map[string]string
 	// traceProtocol is the Datadog trace protocol version the user requested
 	// (TraceProtocolV04 or TraceProtocolV1). This is independent of whether the
 	// trace-agent actually supports it — see RequestedTraceProtocol's doc.
@@ -500,6 +501,11 @@ func loadConfig() *Config {
 		otlpGenericHeaders,
 		decodeOTLPHeaders(p.GetMap("OTEL_EXPORTER_OTLP_METRICS_HEADERS", nil, internal.OtelTagsDelimeter)),
 	)
+	otlpLogsHeaders := p.GetString("OTEL_EXPORTER_OTLP_LOGS_HEADERS", "")
+	if otlpLogsHeaders == "" {
+		otlpLogsHeaders = p.GetString("OTEL_EXPORTER_OTLP_HEADERS", "")
+	}
+	cfg.otlpLogsHeaders = parseOTLPLogsHeaders(otlpLogsHeaders)
 	cfg.otlpMetricsFlushInterval = resolveOTLPMetricsFlushInterval(env.Get("_DD_TRACE_STATS_INTERVAL"))
 	// The protocol is only consumed by the OTLP span metrics exporter. Values
 	// such as "grpc" are valid for other OpenTelemetry components, so only warn
@@ -1702,6 +1708,13 @@ func (c *Config) OTLPLogsEndpoint() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.otlpLogsEndpoint
+}
+
+// OTLPLogsHeaders returns a copy of the resolved OTLP logs headers.
+func (c *Config) OTLPLogsHeaders() map[string]string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return maps.Clone(c.otlpLogsHeaders)
 }
 
 func (c *Config) OTelSemanticsEnabled() bool {

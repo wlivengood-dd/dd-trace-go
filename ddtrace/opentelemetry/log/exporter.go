@@ -214,7 +214,7 @@ func buildHTTPExporterOptions(userOpts ...otlploghttp.Option) []otlploghttp.Opti
 	}
 
 	// Set headers if configured
-	if headers := resolveHeaders(); len(headers) > 0 {
+	if headers := cfg.OTLPLogsHeaders(); len(headers) > 0 {
 		opts = append(opts, otlploghttp.WithHeaders(headers))
 	}
 
@@ -270,7 +270,7 @@ func buildGRPCExporterOptions(userOpts ...otlploggrpc.Option) []otlploggrpc.Opti
 	}
 
 	// Set headers if configured
-	if headers := resolveHeaders(); len(headers) > 0 {
+	if headers := cfg.OTLPLogsHeaders(); len(headers) > 0 {
 		opts = append(opts, otlploggrpc.WithHeaders(headers))
 	}
 
@@ -401,47 +401,6 @@ func resolveOTLPEndpointGRPC() (endpoint string, insecure bool) {
 	endpoint = net.JoinHostPort("localhost", defaultOTLPGRPCPort)
 	log.Debug("Using default OTLP gRPC logs endpoint: %s", endpoint)
 	return
-}
-
-// resolveHeaders returns the headers to send with OTLP requests.
-// Priority: OTEL_EXPORTER_OTLP_LOGS_HEADERS > OTEL_EXPORTER_OTLP_HEADERS
-// Format: k=v,k2=v2 (spaces are trimmed, invalid entries are ignored)
-func resolveHeaders() map[string]string {
-	// Check logs-specific headers first
-	if headersStr := env.Get(envOTLPLogsHeaders); headersStr != "" {
-		return parseHeaders(headersStr)
-	}
-	// Fall back to general OTLP headers
-	if headersStr := env.Get(envOTLPHeaders); headersStr != "" {
-		return parseHeaders(headersStr)
-	}
-	return nil
-}
-
-// parseHeaders parses header string in format "k=v,k2=v2"
-// Spaces are trimmed and values are percent-decoded; invalid entries are ignored.
-func parseHeaders(str string) map[string]string {
-	headers := make(map[string]string)
-	for entry := range strings.SplitSeq(str, ",") {
-		entry = strings.TrimSpace(entry)
-		if entry == "" {
-			continue
-		}
-		parts := strings.SplitN(entry, "=", 2)
-		if len(parts) != 2 {
-			// Invalid entry, skip it
-			continue
-		}
-		key := strings.TrimSpace(parts[0])
-		val, err := url.PathUnescape(strings.TrimSpace(parts[1]))
-		if err != nil {
-			continue
-		}
-		if key != "" {
-			headers[key] = val
-		}
-	}
-	return headers
 }
 
 // resolveExportTimeout returns the export timeout from environment variables.
