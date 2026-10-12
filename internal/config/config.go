@@ -202,6 +202,7 @@ type Config struct {
 	otlpLogsProtocol string
 	otlpLogsEndpoint string
 	otlpLogsHeaders  map[string]string
+	otlpLogsTimeout  time.Duration
 	// traceProtocol is the Datadog trace protocol version the user requested
 	// (TraceProtocolV04 or TraceProtocolV1). This is independent of whether the
 	// trace-agent actually supports it — see RequestedTraceProtocol's doc.
@@ -506,6 +507,11 @@ func loadConfig() *Config {
 		otlpLogsHeaders = p.GetString("OTEL_EXPORTER_OTLP_HEADERS", "")
 	}
 	cfg.otlpLogsHeaders = parseOTLPLogsHeaders(otlpLogsHeaders)
+	otlpLogsTimeoutFallback, otlpTimeoutOrigin := p.GetInt64WithOrigin("OTEL_EXPORTER_OTLP_TIMEOUT", defaultOTLPTimeout.Milliseconds())
+	if otlpTimeoutOrigin == telemetry.OriginDefault {
+		otlpLogsTimeoutFallback = defaultOTLPLogsTimeout.Milliseconds()
+	}
+	cfg.otlpLogsTimeout = time.Duration(p.GetInt64("OTEL_EXPORTER_OTLP_LOGS_TIMEOUT", otlpLogsTimeoutFallback)) * time.Millisecond
 	cfg.otlpMetricsFlushInterval = resolveOTLPMetricsFlushInterval(env.Get("_DD_TRACE_STATS_INTERVAL"))
 	// The protocol is only consumed by the OTLP span metrics exporter. Values
 	// such as "grpc" are valid for other OpenTelemetry components, so only warn
@@ -1715,6 +1721,13 @@ func (c *Config) OTLPLogsHeaders() map[string]string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return maps.Clone(c.otlpLogsHeaders)
+}
+
+// OTLPLogsTimeout returns the OTLP logs export timeout.
+func (c *Config) OTLPLogsTimeout() time.Duration {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.otlpLogsTimeout
 }
 
 func (c *Config) OTelSemanticsEnabled() bool {

@@ -59,6 +59,11 @@ const (
 	defaultBLRPMaxExportBatchSize = 512
 	// defaultOTLPLogsProtocol is the default value for OTEL_EXPORTER_OTLP_LOGS_PROTOCOL.
 	defaultOTLPLogsProtocol = "http/json"
+	// defaultOTLPTimeout is the default value for OTEL_EXPORTER_OTLP_TIMEOUT.
+	defaultOTLPTimeout = 10 * time.Second
+	// defaultOTLPLogsTimeout is the OTLP logs export timeout used when neither
+	// OTEL_EXPORTER_OTLP_LOGS_TIMEOUT nor OTEL_EXPORTER_OTLP_TIMEOUT is set.
+	defaultOTLPLogsTimeout = 30 * time.Second
 	// MaxPropagatedTagsLength is the upper bound on DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH.
 	MaxPropagatedTagsLength = 512
 	// TraceMaxSize is the maximum number of spans we keep in memory for a

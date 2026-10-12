@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -181,7 +180,7 @@ func buildHTTPExporterOptions(userOpts ...otlploghttp.Option) []otlploghttp.Opti
 	cfg := config.Get()
 	opts := []otlploghttp.Option{
 		// Set timeout
-		otlploghttp.WithTimeout(resolveExportTimeout()),
+		otlploghttp.WithTimeout(cfg.OTLPLogsTimeout()),
 		// Set retry configuration
 		otlploghttp.WithRetry(httpRetryConfig()),
 	}
@@ -229,7 +228,7 @@ func buildGRPCExporterOptions(userOpts ...otlploggrpc.Option) []otlploggrpc.Opti
 	cfg := config.Get()
 	opts := []otlploggrpc.Option{
 		// Set timeout
-		otlploggrpc.WithTimeout(resolveExportTimeout()),
+		otlploggrpc.WithTimeout(cfg.OTLPLogsTimeout()),
 		// Set retry config
 		otlploggrpc.WithRetry(grpcRetryConfig()),
 	}
@@ -401,34 +400,6 @@ func resolveOTLPEndpointGRPC() (endpoint string, insecure bool) {
 	endpoint = net.JoinHostPort("localhost", defaultOTLPGRPCPort)
 	log.Debug("Using default OTLP gRPC logs endpoint: %s", endpoint)
 	return
-}
-
-// resolveExportTimeout returns the export timeout from environment variables.
-// Priority: OTEL_EXPORTER_OTLP_LOGS_TIMEOUT > OTEL_EXPORTER_OTLP_TIMEOUT > default (30s)
-func resolveExportTimeout() time.Duration {
-	// Check logs-specific timeout first
-	if timeoutStr := env.Get(envOTLPLogsTimeout); timeoutStr != "" {
-		if timeout, err := parseTimeout(timeoutStr); err == nil {
-			return timeout
-		}
-	}
-	// Fall back to general OTLP timeout
-	if timeoutStr := env.Get(envOTLPTimeout); timeoutStr != "" {
-		if timeout, err := parseTimeout(timeoutStr); err == nil {
-			return timeout
-		}
-	}
-	// Default to 30 seconds
-	return 30 * time.Second
-}
-
-// parseTimeout parses timeout string (milliseconds as integer)
-func parseTimeout(str string) (time.Duration, error) {
-	ms, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return time.Duration(ms) * time.Millisecond, nil
 }
 
 // httpRetryConfig returns the retry configuration for OTLP HTTP exporter.
